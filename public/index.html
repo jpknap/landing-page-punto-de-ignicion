@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PUNTO DE IGNICIÓN — Glitch</title>
+  <style>
+    /* ======= Reset & base ======= */
+    :root {
+      --bg: #0b0d10;
+      --fg: #e7f0ff;
+      --accent: #00fff0;
+      --accent2: #ff006e;
+      --scan-opacity: 0.075;
+      --noise-opacity: 0.035;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 800px at 50% -10%, #18202a 0%, var(--bg) 60%);
+      color: var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      overflow: hidden;
+    }
+
+    /* ======= Layout ======= */
+    .wrap {
+      position: relative;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 4vmin;
+      isolation: isolate; /* so mix-blend won't leak */
+    }
+
+    .stack {
+      display: grid;
+      gap: clamp(0.1em, 2.5vmin, 0.3em);
+      text-align: center;
+      line-height: 0.85;
+      filter: drop-shadow(0 2px 24px rgba(0,0,0,.45));
+      user-select: none;
+    }
+
+    /* ======= Glitch text ======= */
+    .glitch {
+      position: relative;
+      font-weight: 900;
+      font-stretch: 100%;
+      letter-spacing: 0.02em;
+      font-size: clamp(48px, 12.5vmin, 180px);
+      text-transform: uppercase;
+      /* Slight gradient fill for a metallic feel */
+      background: linear-gradient(180deg, #fff, #cde 55%, #9fb3c7 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      /* Subtle bevel */
+      text-shadow: 0 1px 0 rgba(255,255,255,.25), 0 10px 50px rgba(0,0,0,.65);
+    }
+
+    /* Two ghost layers for RGB split */
+    .glitch::before,
+    .glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      mix-blend-mode: screen;
+      filter: drop-shadow(0 0 2px rgba(0,0,0,.2));
+      opacity: .9;
+      clip-path: polygon(0 0,100% 0,100% 100%,0 100%);
+      animation: clipshift 3.5s infinite steps(24);
+    }
+    .glitch::before {
+      color: var(--accent);
+      transform: translate3d(-0.02em, 0, 0);
+      animation-name: clipshift, jitterA, hueA;
+      animation-duration: 3.25s, 1.6s, 9s;
+      animation-timing-function: steps(22), steps(12), linear;
+      animation-iteration-count: infinite;
+    }
+    .glitch::after {
+      color: var(--accent2);
+      transform: translate3d(0.02em, 0, 0);
+      animation-name: clipshift, jitterB, hueB;
+      animation-duration: 3.75s, 1.9s, 10s;
+      animation-timing-function: steps(24), steps(14), linear;
+      animation-iteration-count: infinite;
+    }
+
+    @keyframes jitterA {
+      10% { transform: translate3d(-0.02em, 0, 0); }
+      12% { transform: translate3d(-0.18em, 0.01em, 0) skewX(-6deg); }
+      14% { transform: translate3d(-0.02em, 0, 0); }
+      64% { transform: translate3d(-0.02em, 0, 0); }
+      66% { transform: translate3d(-0.14em, -0.02em, 0) skewX(4deg); }
+      70% { transform: translate3d(-0.02em, 0, 0); }
+    }
+    @keyframes jitterB {
+      8% { transform: translate3d(0.02em, 0, 0); }
+      10% { transform: translate3d(0.16em, -0.02em, 0) skewX(5deg); }
+      12% { transform: translate3d(0.02em, 0, 0); }
+      72% { transform: translate3d(0.02em, 0, 0); }
+      75% { transform: translate3d(0.2em, 0.02em, 0) skewX(-5deg); }
+      78% { transform: translate3d(0.02em, 0, 0); }
+    }
+
+    /* Mask slices shifting to create the glitch banding */
+    @keyframes clipshift {
+      0%, 100% { clip-path: inset(0 0 0 0); }
+      10% { clip-path: inset(10% 0 60% 0); }
+      12% { clip-path: inset(80% 0 5% 0); }
+      14% { clip-path: inset(35% 0 30% 0); }
+      50% { clip-path: inset(5% 0 80% 0); }
+      52% { clip-path: inset(65% 0 7% 0); }
+      54% { clip-path: inset(25% 0 20% 0); }
+      70% { clip-path: inset(0 0 0 0); }
+    }
+
+    /* Slow hue shifts for neon feel */
+    @keyframes hueA { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
+    @keyframes hueB { from { filter: hue-rotate(360deg); } to { filter: hue-rotate(0deg); } }
+
+    /* ======= CRT overlay: scanlines + noise ======= */
+    .scanlines,
+    .noise {
+      position: absolute;
+      inset: -50%;
+      z-index: -1; /* behind text but above bg */
+      pointer-events: none;
+    }
+
+    /* Horizontal scanlines */
+    .scanlines::before {
+      content: "";
+      position: absolute; inset: 0;
+      background-image: repeating-linear-gradient(
+        180deg,
+        rgba(255,255,255,var(--scan-opacity)) 0px,
+        rgba(255,255,255,var(--scan-opacity)) 1px,
+        rgba(0,0,0,0) 2px,
+        rgba(0,0,0,0) 4px
+      );
+      mix-blend-mode: soft-light;
+      animation: roll 18s linear infinite;
+    }
+    @keyframes roll {
+      from { transform: translateY(-10%); }
+      to   { transform: translateY(10%); }
+    }
+
+    /* Static noise using conic gradients */
+    .noise::before {
+      content: "";
+      position: absolute; inset: 0;
+      background: 
+        conic-gradient(from 0deg at 25% 25%, rgba(255,255,255,var(--noise-opacity)) 0 25%, transparent 0 100%),
+        conic-gradient(from 90deg at 75% 75%, rgba(255,255,255,var(--noise-opacity)) 0 25%, transparent 0 100%),
+        conic-gradient(from 45deg at 50% 50%, rgba(255,255,255,var(--noise-opacity)) 0 25%, transparent 0 100%);
+      mix-blend-mode: overlay;
+      filter: blur(.6px);
+      animation: staticShift 1.2s steps(12) infinite;
+    }
+    @keyframes staticShift {
+      0% { transform: translate(0,0) scale(1.02); }
+      50% { transform: translate(1%, -1%) scale(1.01) rotate(.2deg); }
+      100% { transform: translate(-1%, 1%) scale(1.02); }
+    }
+
+    /* Small responsive tweaks */
+    @media (max-width: 520px) {
+      .glitch { letter-spacing: 0.01em; }
+      .stack { gap: 0.1em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Overlays -->
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="noise" aria-hidden="true"></div>
+
+    <!-- Texto en 3 líneas -->
+    <div class="stack" role="img" aria-label="PUNTO DE IGNICIÓN">
+      <div class="glitch" data-text="PUNTO">PUNTO</div>
+      <div class="glitch" data-text="de">de</div>
+      <div class="glitch" data-text="IGNICIÓN">IGNICIÓN</div>
+    </div>
+  </div>
+
+  <!-- Opcional: pequeño destello aleatorio para intensificar el glitch -->
+  <script>
+    // Parpadeo global del contenedor (muy sutil)
+    const wrap = document.querySelector('.wrap');
+    let t = 0;
+    (function loop(){
+      t += (Math.random() * 0.8 + 0.2);
+      const f = 0.002 + Math.random() * 0.004;
+      wrap.style.filter = `contrast(${100 + Math.sin(t) * 2}%) saturate(${100 + Math.cos(t*1.3) * 2}%)`;
+      requestAnimationFrame(loop);
+    })();
+
+    // Cada cierto tiempo, una sacudida sutil de la pila
+    const stack = document.querySelector('.stack');
+    setInterval(() => {
+      stack.animate([
+        { transform: 'translate(0,0)' },
+        { transform: 'translate(0.5px, -0.5px)' },
+        { transform: 'translate(0,0)' }
+      ], { duration: 120, easing: 'steps(3,end)' });
+    }, 900 + Math.random() * 600);
+  </script>
+</body>
+</html>
+
