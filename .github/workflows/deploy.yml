@@ -1,0 +1,60 @@
+name: Deploy Punto De ignicion
+
+on:
+  push:
+    branches: [ main ]   # dispara en commits a main
+
+concurrency:
+  group: deploy-public
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_DIR: /var/www/puntodeignicion_landing
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      # Comprime SOLO el contenido de public/ (no el resto del repo)
+      - name: Create tarball from public/
+        run: |
+          test -d public || (echo "No existe 'public/'" && exit 1)
+          mkdir -p dist
+          # El tar tendrá como raíz el contenido de public (no la carpeta)
+          tar -czf dist/public.tar.gz -C public .
+
+      - name: Upload tarball
+        run: |
+          scp -P ${{ secrets.SSH_PORT }} dist/public.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/site.tar.gz
+
+      - name: Deploy (rsync --delete)
+        run: |
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            set -e
+            TMPDIR=\$(mktemp -d /tmp/deploy.XXXXXX)
+            tar -xzf /tmp/site.tar.gz -C \"\$TMPDIR\"
+
+            # Sincroniza al destino y ELIMINA lo que ya no exista
+            sudo -n rsync -a --delete \"\$TMPDIR\"/ \"$TARGET_DIR\"/
+
+            # Limpieza y permisos/SELinux
+            sudo -n rm -f /tmp/site.tar.gz
+            sudo -n rm -rf \"\$TMPDIR\"
+            sudo -n find \"$TARGET_DIR\" -type d -exec chmod 755 {} \\;
+            sudo -n find \"$TARGET_DIR\" -type f -exec chmod 644 {} \\;
+            sudo -n chown -R deploy:deploy \"$TARGET_DIR\"
+            sudo -n restorecon -R \"$TARGET_DIR\" || true
+          "
